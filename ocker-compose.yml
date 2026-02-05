@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8501:8501"
+    container_name: jra_race_calendar_container
