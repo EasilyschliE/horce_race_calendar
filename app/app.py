@@ -7,7 +7,7 @@ st.title("JRA レース検索ツール")
 @st.cache_data
 def load_data():
     # 実際にはここにJRAからコピーしたデータを保存したCSVを指定します
-    return pd.read_csv("race_data.csv")
+    return pd.read_csv("data/race_data.csv")
 
 try:
     df = load_data()
