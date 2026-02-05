@@ -1,14 +1,43 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="JRA レース検索ツール")
+st.set_page_config(page_title="JRA レース検索", layout="wide")
 st.title("JRA レース検索ツール")
 
-st.info("ここにJRAから取得したレースデータを表示します。")
+@st.cache_data
+def load_data():
+    # 実際にはここにJRAからコピーしたデータを保存したCSVを指定します
+    return pd.read_csv("race_data.csv")
 
-# 検索条件のサンプル（UIのみ先行して作成）
-st.sidebar.header("検索条件")
-race_type = st.sidebar.selectbox("条件", ["芝2000m", "芝1600m", "ダ1200m"])
-race_class = st.sidebar.multiselect("クラス", ["G1", "G2", "G3", "3勝", "2勝", "1勝"], default=["3勝"])
+try:
+    df = load_data()
 
-st.write(f"現在の選択条件: {race_type} / {race_class}")
+    # サイドバーに検索条件を配置
+    st.sidebar.header("検索フィルタ")
+    
+    # 1. クラス選択
+    classes = st.sidebar.multiselect("クラス選択", df["class"].unique(), default=["3勝"])
+    
+    # 2. 馬場選択
+    surfaces = st.sidebar.multiselect("馬場種類", df["surface"].unique(), default=["芝"])
+    
+    # 3. 距離選択（スライダーで範囲指定も可能）
+    min_dist, max_dist = st.sidebar.select_slider(
+        "距離範囲 (m)",
+        options=sorted(df["distance"].unique()),
+        value=(min(df["distance"]), max(df["distance"]))
+    )
+
+    # フィルタリング実行
+    filtered_df = df[
+        (df["class"].isin(classes)) &
+        (df["surface"].isin(surfaces)) &
+        (df["distance"].between(min_dist, max_dist))
+    ]
+
+    # 結果表示
+    st.subheader(f"該当レース: {len(filtered_df)} 件")
+    st.dataframe(filtered_df, use_container_width=True)
+
+except FileNotFoundError:
+    st.warning("race_data.csvをフォルダ内に作成してください。")
