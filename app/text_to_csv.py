@@ -202,6 +202,8 @@ raw_text = """
 1,400（芝・外）定量
 
 16時10分
+
+
 """
 
 def extract_date(text):
@@ -245,9 +247,9 @@ def parse_jra_text(text):
             surface = "芝" if "芝" in m[3] else "ダート"
             extra_raw = m[4].replace("\n", " ").strip()
 
-            gender = "牝馬限定" if "（牝）" in condition_raw or "（牝）" in extra_raw else "混合"
+            gender = "牝馬限定" if "（牝）" in condition_raw or "（牝）" in extra_raw else ""
             
-            weight = "不明"
+            weight = ""
             for w in ["ハンデ", "定量", "別定", "馬齢"]:
                 if w in extra_raw or w in condition_raw:
                     weight = w
@@ -255,10 +257,12 @@ def parse_jra_text(text):
 
             race_class = "その他"
             if any(x in condition_raw for x in ["GⅢ", "G3"]): race_class = "G3"
+            elif any(x in condition_raw for x in ["GⅡ", "G2"]): race_class = "G2"
+            elif any(x in condition_raw for x in ["GⅠ", "G1"]): race_class = "G1"
+            elif "オープン" in condition_raw: race_class = "OP"
             elif "3勝" in condition_raw: race_class = "3勝"
             elif "2勝" in condition_raw: race_class = "2勝"
             elif "1勝" in condition_raw: race_class = "1勝"
-            elif "オープン" in condition_raw: race_class = "OP"
             elif "未勝利" in condition_raw: race_class = "未勝利"
             elif "新馬" in condition_raw: race_class = "新馬"
 
