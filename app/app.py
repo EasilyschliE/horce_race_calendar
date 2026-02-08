@@ -23,6 +23,18 @@ def load_data():
     df_all = df_all.fillna("")
     return df_all
 
+st.markdown(
+    """
+    <style>
+    /* ツールバー（ダウンロードボタンなど）を隠す */
+    [data-testid="stElementToolbar"] {
+        display: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 try:
     df = load_data()
 
@@ -32,27 +44,41 @@ try:
         # --- サイドバーの検索フィルタ ---
         st.sidebar.header("検索フィルタ")
         
-        # 1. クラス選択 (並び順を固定)
+        # 1. 種別選択（平地 / 障害）
+        selected_obstacle = st.sidebar.radio("種別", ["すべて", "平地", "障害"])
+
+        # 2. 年齢条件（3歳, 4歳以上など）
+        # データから動的に取得。空文字を除いてソート
+        age_list = sorted([a for a in df["age_condition"].unique() if a != ""])
+        selected_ages = st.sidebar.multiselect("年齢条件", age_list)
+
+        # 3. クラス選択 (並び順を固定)
         CLASS_ORDER = ["G1", "G2", "G3", "OP", "3勝", "2勝", "1勝", "新馬", "未勝利", "その他"]
         existing_classes = [c for c in CLASS_ORDER if c in df["class"].unique()]
         other_classes = [c for c in df["class"].unique() if c not in CLASS_ORDER]
         available_classes = existing_classes + other_classes
-
-        # defaultを指定しないことで未選択状態にする
         selected_classes = st.sidebar.multiselect("クラス選択", available_classes)
         
-        # 2. ラジオボタンによる絞り込み
+        # 4. ラジオボタンによる絞り込み
         selected_surface = st.sidebar.radio("馬場種類", ["すべて", "芝", "ダート"])
         selected_gender = st.sidebar.radio("性別制限", ["すべて", "牝馬限定"])
         
-        # 実際にデータに存在する重量種別を動的に取得
+        # 重量種別
         weight_options = ["すべて"] + [w for w in ["定量", "ハンデ", "別定", "馬齢"] if w in df["weight_type"].unique() or w == ""]
         selected_weight = st.sidebar.radio("重量種別", weight_options)
 
         # --- フィルタリング実行 ---
         filtered_df = df.copy()
 
-        # クラス：選択されている場合のみ絞り込む（未選択なら全表示）
+        # 種別フィルタ
+        if selected_obstacle != "すべて":
+            filtered_df = filtered_df[filtered_df["is_obstacle"] == selected_obstacle]
+
+        # 年齢フィルタ
+        if selected_ages:
+            filtered_df = filtered_df[filtered_df["age_condition"].isin(selected_ages)]
+
+        # クラスフィルタ
         if selected_classes:
             filtered_df = filtered_df[filtered_df["class"].isin(selected_classes)]
 
@@ -79,7 +105,9 @@ try:
             column_config={
                 "date": "日付",
                 "location": "場所",
-                "race_num": "R",
+                "race_num": st.column_config.NumberColumn("R", format="%dR"),
+                "is_obstacle": "種別",
+                "age_condition": "年齢",
                 "race_name": "レース名",
                 "class": "クラス",
                 "distance": st.column_config.NumberColumn("距離", format="%d m"),
