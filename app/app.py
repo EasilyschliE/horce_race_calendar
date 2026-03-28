@@ -150,29 +150,6 @@ try:
         
         f_df = f_df[[c for c in display_columns if c in f_df.columns]]
 
-        # --- 表示 ---
-        # # --- 検索条件の要約表示（バッジ風） ---
-        # summary_items = []
-        # if selected_months: summary_items.append(f"📅 {', '.join(selected_months)}")
-        # if selected_locations: summary_items.append(f"📍 {', '.join(selected_locations)}")
-        # if selected_classes: summary_items.append(f"🏆 {', '.join(selected_classes)}")
-        # if selected_surf: summary_items.append(f"🌱 {', '.join(selected_surf)}")
-        # if selected_obs: summary_items.append(f"🏇 {', '.join(selected_obs)}")
-        # if selected_gen: summary_items.append("♀️ 牝馬限定")
-        # if selected_tracks: summary_items.append(f"内/外: {', '.join(selected_tracks)}")
-        # if selected_weights: summary_items.append(f"⚖️ {', '.join(selected_weights)}")
-        
-        # # 距離が全範囲でない場合のみ表示
-        # if dist_range[0] > min_d or dist_range[1] < max_d:
-        #     summary_items.append(f"📏 {dist_range[0]}m～{dist_range[1]}m")
-
-        # if summary_items:
-        #     st.write(f"🔍 **現在の条件:** {' / '.join(summary_items)}")
-        # else:
-        #     st.caption("🔍 全てのレースを表示中（フィルタ未設定）")
-
-        # st.divider() # 区切り線
-
         # --- 表示ロジック（データがない時の処理含む） ---
         if f_df.empty:
             st.warning("条件に一致するレースが見つかりませんでした。検索条件を緩めてみてください。")
