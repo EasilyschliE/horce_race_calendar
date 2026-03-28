@@ -7,25 +7,44 @@ st.set_page_config(page_title="JRA レース検索", layout="wide")
 st.title("JRA レース検索ツール")
 
 @st.cache_data
-def load_data():
+def load_data(file_hash): # 引数を追加
     files = glob.glob("data/race_data_*.csv")
     if not files: return pd.DataFrame()
     
     df_list = [pd.read_csv(f) for f in files]
     df_all = pd.concat(df_list, ignore_index=True)
-    # 日付、場所、Rの順でソート
     df_all = df_all.sort_values(["date", "location", "race_num"], ascending=[True, True, True])
     
-    df_all["month"] = pd.to_datetime(df_all["date"]).dt.strftime("%Y-%m")
+    # 日付変換エラーを避けるため errors='coerce' を入れるのが安全です
+    df_all["month"] = pd.to_datetime(df_all["date"], errors='coerce').dt.strftime("%Y-%m")
     return df_all.fillna("")
 
+# 呼び出し側を修正
+# dataフォルダ内の全ファイルの「最終更新日時」を合計したものをハッシュとして渡す
+data_files = glob.glob("data/race_data_*.csv")
+file_hash = sum([os.path.getmtime(f) for f in data_files]) if data_files else 0
+df = load_data(file_hash)
 st.markdown("""<style>[data-testid="stElementToolbar"] { display: none; }</style>""", unsafe_allow_html=True)
 
 try:
-    df = load_data()
+    df = load_data(file_hash)
     if df.empty:
         st.warning("データがありません。")
     else:
+        # --- ここから追加：データ期間の表示 ---
+        min_month = df["month"].min().replace("-", "年") + "月"
+        max_month = df["month"].max().replace("-", "年") + "月"
+        st.info(f"📊 現在インポートされているデータ期間: {min_month} 〜 {max_month}")
+
+        # --- メイン画面上部の免責事項（折り畳み） ---
+        with st.expander("⚠️ 本サイトのデータについて"):
+            st.caption("""
+            - 本サイトは個人が作成した非公式のツールであり、JRA（日本中央競馬会）とは一切関係ありません。
+            - 表示されるデータは公式サイトの番組表を入力したものですが、正確性を保証するものではありません。
+            - 開催の変更や最新の出馬表については、必ず[JRA公式サイト](https://www.jra.go.jp/)をご確認ください。
+            - 本アプリの利用により生じた損害について、制作者は一切の責任を負いません。
+            """)
+
         # --- サイドバー UI ---
         st.sidebar.header("検索フィルタ")
 
@@ -108,11 +127,16 @@ try:
             f_df,
             use_container_width=True,
             hide_index=True,
+            height=500,
             column_config={
                 "date": "日付", 
                 "location": "場所", 
                 "race_num": st.column_config.NumberColumn("R", format="%dR"),
-                "race_name": "レース名",
+                "race_name": st.column_config.TextColumn(
+                    "レース名",
+                    width="medium",
+                    
+                ),
                 "class": "クラス",
                 "is_obstacle": "種別", 
                 "age_condition": "年齢", 
