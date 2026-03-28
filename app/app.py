@@ -48,59 +48,88 @@ try:
         # --- サイドバー UI ---
         st.sidebar.header("検索フィルタ")
 
-        # グループ1: 開催情報
+        # --- サイドバー UI ---
+        st.sidebar.header("検索フィルタ")
+
+        LOCATION_ORDER = ["札幌", "函館", "福島", "新潟", "中山", "東京", "中京", "京都", "阪神", "小倉"]
+
+        # データの抽出部分を修正
         with st.sidebar.expander("開催日時・場所", expanded=True):
             month_list = sorted(list(df["month"].unique()))
-            selected_months = st.multiselect("開催月", month_list)
+            selected_months = st.multiselect("開催月", month_list, placeholder="全期間")
             
-            loc_list = sorted(list(df["location"].unique()))
-            selected_locations = st.multiselect("競馬場", loc_list)
-
-        # グループ2: レース詳細（条件・コース・重量を統合）
-        with st.sidebar.expander("レース詳細", expanded=True):
-            # 種別 & 性別
-            col1, col2 = st.columns(2)
-            with col1:
-                selected_obs = st.radio("種別", ["すべて", "平地", "障害"])
-            with col2:
-                selected_gen = st.radio("性別", ["すべて", "牝馬限定"])
+            # ▼ ここを修正 ▼
+            # データに含まれる競馬場を取得
+            raw_loc_list = df["location"].unique()
+            # LOCATION_ORDER にある順序でソートし、リストにないものは後ろに回す
+            loc_list = sorted(raw_loc_list, key=lambda x: LOCATION_ORDER.index(x) if x in LOCATION_ORDER else 99)
+            selected_locations = st.multiselect("競馬場", loc_list, placeholder="全競馬場")
             
-            # 馬場
-            selected_surf = st.radio("馬場", ["すべて", "芝", "ダート"], horizontal=True)
-
-            # クラス
-            CLASS_ORDER = ["G1", "G2", "G3", "L", "OP", "3勝", "2勝", "1勝", "新馬", "未勝利", "その他"]
-            available_classes = [c for c in CLASS_ORDER if c in df["class"].unique()]
-            selected_classes = st.multiselect("クラス", available_classes)
-
-            # 年齢条件
-            age_list = sorted([a for a in df["age_condition"].unique() if a != ""])
-            selected_ages = st.multiselect("年齢条件", age_list)
-            
-            # コース詳細
-            track_opts = ["すべて", "通常", "内", "外", "直"]
-            selected_tracks = st.multiselect("コース詳細", track_opts, default="すべて")
-            
-            # 距離（スライダー）
+        # グループ2: レース条件
+        with st.sidebar.expander("レース条件", expanded=True):
             min_d, max_d = int(df["distance"].min()), int(df["distance"].max())
             dist_range = st.slider("距離 (m)", min_d, max_d, (min_d, max_d), step=100)
+
+            # 性別と種別を1行にまとめるか、マルチセレクト化
+            selected_gen = st.checkbox("牝馬限定のみ表示") # radioよりチェックボックスの方が直感的
             
-            # 重量
+            selected_surf = st.multiselect("馬場", ["芝", "ダート"], placeholder="すべて")
+
+            CLASS_ORDER = ["G1", "G2", "G3", "L", "OP", "3勝", "2勝", "1勝", "新馬", "未勝利", "その他"]
+            available_classes = [c for c in CLASS_ORDER if c in df["class"].unique()]
+            selected_classes = st.multiselect("クラス", available_classes, placeholder="全クラス")
+
+            age_list = sorted([a for a in df["age_condition"].unique() if a != ""])
+            selected_ages = st.multiselect("年齢条件", age_list, placeholder="全年齢")
+
+        # グループ3: コース・重量
+        with st.sidebar.expander("詳細条件", expanded=False): # ここは初期状態で閉じておくとスッキリ
+
+            selected_obs = st.multiselect("レース種別", ["平地", "障害"], placeholder="すべて")
+
             weight_list = ["定量", "ハンデ", "別定", "馬齢"]
             avail_weights = [w for w in weight_list if w in df["weight_type"].unique()]
-            selected_weight = st.selectbox("重量種別", ["すべて"] + avail_weights)
+            selected_weights = st.multiselect("重量種別", avail_weights, placeholder="すべて")
+            
+            track_opts = ["内", "外", "直"] # 「すべて」をリストから除外
+            selected_tracks = st.multiselect("コース詳細", track_opts, placeholder="すべて")
 
-        # --- フィルタリング実行 ---
+# --- フィルタリング実行 ---
         f_df = df.copy()
-        if selected_months: f_df = f_df[f_df["month"].isin(selected_months)]
-        if selected_locations: f_df = f_df[f_df["location"].isin(selected_locations)]
-        if selected_obs != "すべて": f_df = f_df[f_df["is_obstacle"] == selected_obs]
-        if selected_ages: f_df = f_df[f_df["age_condition"].isin(selected_ages)]
-        if selected_classes: f_df = f_df[f_df["class"].isin(selected_classes)]
-        if selected_surf != "すべて": f_df = f_df[f_df["surface"] == selected_surf]
-        if selected_gen == "牝馬限定": f_df = f_df[f_df["gender"] == "牝馬限定"]
-        if "すべて" not in selected_tracks and selected_tracks: f_df = f_df[f_df["track_detail"].isin(selected_tracks)]
-        if selected_weight != "すべて": f_df = f_df[f_df["weight_type"] == selected_weight]
+
+        # 1. 開催月 & 競馬場 (multiselect)
+        if selected_months:
+            f_df = f_df[f_df["month"].isin(selected_months)]
+        if selected_locations:
+            f_df = f_df[f_df["location"].isin(selected_locations)]
+
+        # 2. 種別 (multiselect化に対応)
+        if selected_obs:
+            f_df = f_df[f_df["is_obstacle"].isin(selected_obs)]
+
+        # 3. 性別 (checkboxに対応)
+        if selected_gen:
+            f_df = f_df[f_df["gender"] == "牝馬限定"]
+
+        # 4. 馬場 (multiselect化に対応)
+        if selected_surf:
+            f_df = f_df[f_df["surface"].isin(selected_surf)]
+
+        # 5. クラス & 年齢条件 (multiselect)
+        if selected_classes:
+            f_df = f_df[f_df["class"].isin(selected_classes)]
+        if selected_ages:
+            f_df = f_df[f_df["age_condition"].isin(selected_ages)]
+
+        # 6. 重量種別 (multiselectに対応。変数が selected_weights になっている点に注意)
+        if selected_weights:
+            f_df = f_df[f_df["weight_type"].isin(selected_weights)]
+
+        # 7. コース詳細 (multiselectに対応)
+        if selected_tracks:
+            f_df = f_df[f_df["track_detail"].isin(selected_tracks)]
+
+        # 8. 距離 (スライダー)
         f_df = f_df[(f_df["distance"] >= dist_range[0]) & (f_df["distance"] <= dist_range[1])]
 
         # --- カラムの表示順定義 ---
@@ -122,31 +151,54 @@ try:
         f_df = f_df[[c for c in display_columns if c in f_df.columns]]
 
         # --- 表示 ---
-        st.subheader(f"該当レース: {len(f_df)} 件")
-        st.dataframe(
-            f_df,
-            use_container_width=True,
-            hide_index=True,
-            height=500,
-            column_config={
-                "date": "日付", 
-                "location": "場所", 
-                "race_num": st.column_config.NumberColumn("R", format="%dR"),
-                "race_name": st.column_config.TextColumn(
-                    "レース名",
-                    width="medium",
-                    
-                ),
-                "class": "クラス",
-                "is_obstacle": "種別", 
-                "age_condition": "年齢", 
-                "surface": "馬場", 
-                "distance": st.column_config.NumberColumn("距離", format="%d m"),
-                "track_detail": "詳細",
-                "gender": "制限", 
-                "weight_type": "重量"
-            }
-        )
+        # # --- 検索条件の要約表示（バッジ風） ---
+        # summary_items = []
+        # if selected_months: summary_items.append(f"📅 {', '.join(selected_months)}")
+        # if selected_locations: summary_items.append(f"📍 {', '.join(selected_locations)}")
+        # if selected_classes: summary_items.append(f"🏆 {', '.join(selected_classes)}")
+        # if selected_surf: summary_items.append(f"🌱 {', '.join(selected_surf)}")
+        # if selected_obs: summary_items.append(f"🏇 {', '.join(selected_obs)}")
+        # if selected_gen: summary_items.append("♀️ 牝馬限定")
+        # if selected_tracks: summary_items.append(f"内/外: {', '.join(selected_tracks)}")
+        # if selected_weights: summary_items.append(f"⚖️ {', '.join(selected_weights)}")
+        
+        # # 距離が全範囲でない場合のみ表示
+        # if dist_range[0] > min_d or dist_range[1] < max_d:
+        #     summary_items.append(f"📏 {dist_range[0]}m～{dist_range[1]}m")
+
+        # if summary_items:
+        #     st.write(f"🔍 **現在の条件:** {' / '.join(summary_items)}")
+        # else:
+        #     st.caption("🔍 全てのレースを表示中（フィルタ未設定）")
+
+        # st.divider() # 区切り線
+
+        # --- 表示ロジック（データがない時の処理含む） ---
+        if f_df.empty:
+            st.warning("条件に一致するレースが見つかりませんでした。検索条件を緩めてみてください。")
+            
+        else:
+            st.subheader(f"該当レース: {len(f_df)} 件")
+            st.dataframe(
+                f_df,
+                use_container_width=True,
+                hide_index=True,
+                height=600,
+                column_config={
+                    "date": "日付", 
+                    "location": "場所", 
+                    "race_num": st.column_config.NumberColumn("R", format="%dR"),
+                    "race_name": st.column_config.TextColumn("レース名", width="medium"),
+                    "class": "クラス",
+                    "is_obstacle": "種別", 
+                    "age_condition": "年齢", 
+                    "surface": "馬場", 
+                    "distance": st.column_config.NumberColumn("距離", format="%d m"),
+                    "track_detail": "詳細",
+                    "gender": "制限", 
+                    "weight_type": "重量"
+                }
+            )
 
 except Exception as e:
     st.error(f"Error: {e}")
