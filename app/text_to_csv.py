@@ -2,11 +2,12 @@ import re
 import pandas as pd
 import os
 
+# 実行コマンド
+# python app/text_to_csv.py
+
 # JRAの番組表テキストをここに貼り付け
 raw_text = """
-2026年5月31日（日曜）　競馬番組
 
-という感じでコピペ
 
 """
 
