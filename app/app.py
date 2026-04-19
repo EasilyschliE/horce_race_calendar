@@ -91,7 +91,7 @@ try:
             track_opts = ["内", "外", "直"] # 「すべて」をリストから除外
             selected_tracks = st.multiselect("コース詳細", track_opts, placeholder="すべて")
 
-# --- フィルタリング実行 ---
+        # --- フィルタリング実行 ---
         f_df = df.copy()
 
         # 1. 開催月 & 競馬場 (multiselect)
@@ -129,50 +129,113 @@ try:
         # 8. 距離 (スライダー)
         f_df = f_df[(f_df["distance"] >= dist_range[0]) & (f_df["distance"] <= dist_range[1])]
 
-        # --- カラムの表示順定義 ---
-        display_columns = [
-            "date",
-            "location",
-            "race_num",
-            "race_name",
-            "class",
-            "is_obstacle",
-            "age_condition",
-            "surface",
-            "distance",
-            "track_detail",
-            "gender",
-            "weight_type"
-        ]
-        
-        f_df = f_df[[c for c in display_columns if c in f_df.columns]]
+        # 初期状態（何も選ばれていない状態）かどうかをチェック
+        is_filter_applied = any([
+            selected_months, 
+            selected_locations, 
+            selected_obs, 
+            selected_gen, 
+            selected_surf, 
+            selected_classes, 
+            selected_ages, 
+            selected_weights, 
+            selected_tracks,
+            dist_range != (min_d, max_d)  # 距離が動かされているか
+        ])
 
         # --- 表示ロジック（データがない時の処理含む） ---
-        if f_df.empty:
+        if not is_filter_applied:
+            # 【重要】何も選ばれていない時は案内だけ出す
+            st.info("👈 左側のサイドバーから検索条件を指定してください。")
+            
+        elif f_df.empty:
             st.warning("条件に一致するレースが見つかりませんでした。検索条件を緩めてみてください。")
             
         else:
+            current_tags = []
+            if selected_months: current_tags.append(f"📅 {', '.join(selected_months)}")
+            if selected_locations: current_tags.append(f"📍 {', '.join(selected_locations)}")
+            if selected_classes: current_tags.append(f"🏆 {', '.join(selected_classes)}")
+            if selected_gen: current_tags.append("🚺 牝馬限定")
+            if selected_surf: current_tags.append(f"🏟️ {'/'.join(selected_surf)}")
+            if selected_ages: current_tags.append(f"🎂 {', '.join(selected_ages)}")
+            if dist_range != (min_d, max_d): 
+                current_tags.append(f"📏 {dist_range[0]}m～{dist_range[1]}m")
+            if selected_obs: current_tags.append(f"🚧 {', '.join(selected_obs)}")
+            if selected_weights: current_tags.append(f"⚖️ {', '.join(selected_weights)}")
+            if selected_tracks: current_tags.append(f"🛣️ {', '.join(selected_tracks)}")
+            
+            # タグが存在する場合のみ、グレーの背景でスッキリ表示
+            if current_tags:
+                tag_html = " ".join([f'<span style="background-color: #f0f2f6; padding: 2px 8px; border-radius: 4px; margin-right: 4px; font-size: 0.8rem; color: #31333F;">{t}</span>' for t in current_tags])
+                st.markdown(tag_html, unsafe_allow_html=True)
+                st.write("") # 少し余白
             st.subheader(f"該当レース: {len(f_df)} 件")
-            st.dataframe(
-                f_df,
-                use_container_width=True,
-                hide_index=True,
-                height=600,
-                column_config={
-                    "date": "日付", 
-                    "location": "場所", 
-                    "race_num": st.column_config.NumberColumn("R", format="%dR"),
-                    "race_name": st.column_config.TextColumn("レース名", width="medium"),
-                    "class": "クラス",
-                    "is_obstacle": "種別", 
-                    "age_condition": "年齢", 
-                    "surface": "馬場", 
-                    "distance": st.column_config.NumberColumn("距離", format="%d m"),
-                    "track_detail": "詳細",
-                    "gender": "制限", 
-                    "weight_type": "重量"
-                }
-            )
+
+            # --- ここから追加：スマホ用スッキリ表示トグル ---
+            # デフォルトをTrueにしておき、スマホユーザーがすぐ見やすいようにする
+            is_mobile = st.toggle("📱 スマホ向け短縮表示", value=True, help="列を結合して横スクロールを減らします")
+
+            if is_mobile:
+
+                for index, row in f_df.iterrows():
+                    # 1. 牝馬限定の判定
+                    gen_tag = " (牝限)" if row['gender'] == "牝馬限定" else ""
+                    
+                    # 2. 馬場の短縮
+                    surf_short = "ダ" if row['surface'] == "ダート" else row['surface']
+                    
+                    # 3. 日付の短縮 (2026-07-25 -> 07/25)
+                    short_date = row['date'][5:].replace("-", "/")
+                    
+                    # 4. ヘッダー構築（改行を考慮したチャンク設計）
+                    # [日時・場所] [レース名・牝限] [コース] の3つの塊にする
+                    header_text = (
+                        f"📅 {short_date} [{row['location']}{row['race_num']}R] "
+                        f"🏇 {row['race_name']}{gen_tag} "
+                        f"📏 {surf_short}{row['distance']}m"
+                    )
+                    
+                    with st.expander(header_text):
+                        # 展開時は表形式に近い形で見せる
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.markdown(f"**クラス:** {row['class']}")
+                            st.markdown(f"**年齢:** {row['age_condition']}")
+                        with c2:
+                            st.markdown(f"**重量:** {row['weight_type']}")
+                            if row['track_detail']:
+                                st.markdown(f"**詳細:** {row['track_detail']}")
+                            
+            else:
+                # --- PC用：従来の全列表示 ---
+                display_columns = [
+                    "date", "location", "race_num", "race_name", "class", 
+                    "is_obstacle", "age_condition", "surface", "distance", 
+                    "track_detail", "gender", "weight_type"
+                ]
+                show_df = f_df[[c for c in display_columns if c in f_df.columns]]
+
+                st.dataframe(
+                    show_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=600,
+                    column_config={
+                        "date": "日付", 
+                        "location": "場所", 
+                        "race_num": st.column_config.NumberColumn("R", format="%dR"),
+                        "race_name": st.column_config.TextColumn("レース名", width="medium"),
+                        "class": "クラス",
+                        "is_obstacle": "種別", 
+                        "age_condition": "年齢", 
+                        "surface": "馬場", 
+                        "distance": st.column_config.NumberColumn("距離", format="%d m"),
+                        "track_detail": "詳細",
+                        "gender": "制限", 
+                        "weight_type": "重量"
+                    }
+                )
 
 except Exception as e:
     st.error(f"Error: {e}")
