@@ -91,7 +91,7 @@ try:
             track_opts = ["内", "外", "直"] # 「すべて」をリストから除外
             selected_tracks = st.multiselect("コース詳細", track_opts, placeholder="すべて")
 
-# --- フィルタリング実行 ---
+        # --- フィルタリング実行 ---
         f_df = df.copy()
 
         # 1. 開催月 & 競馬場 (multiselect)
@@ -129,50 +129,80 @@ try:
         # 8. 距離 (スライダー)
         f_df = f_df[(f_df["distance"] >= dist_range[0]) & (f_df["distance"] <= dist_range[1])]
 
-        # --- カラムの表示順定義 ---
-        display_columns = [
-            "date",
-            "location",
-            "race_num",
-            "race_name",
-            "class",
-            "is_obstacle",
-            "age_condition",
-            "surface",
-            "distance",
-            "track_detail",
-            "gender",
-            "weight_type"
-        ]
-        
-        f_df = f_df[[c for c in display_columns if c in f_df.columns]]
+        # 初期状態（何も選ばれていない状態）かどうかをチェック
+        is_filter_applied = any([
+            selected_months, 
+            selected_locations, 
+            selected_obs, 
+            selected_gen, 
+            selected_surf, 
+            selected_classes, 
+            selected_ages, 
+            selected_weights, 
+            selected_tracks,
+            dist_range != (min_d, max_d)  # 距離が動かされているか
+        ])
 
         # --- 表示ロジック（データがない時の処理含む） ---
-        if f_df.empty:
+        if not is_filter_applied:
+            # 【重要】何も選ばれていない時は案内だけ出す
+            st.info("👈 左側のサイドバーから検索条件（月、競馬場、クラスなど）を指定してください。")
+            
+        elif f_df.empty:
             st.warning("条件に一致するレースが見つかりませんでした。検索条件を緩めてみてください。")
             
         else:
             st.subheader(f"該当レース: {len(f_df)} 件")
-            st.dataframe(
-                f_df,
-                use_container_width=True,
-                hide_index=True,
-                height=600,
-                column_config={
-                    "date": "日付", 
-                    "location": "場所", 
-                    "race_num": st.column_config.NumberColumn("R", format="%dR"),
-                    "race_name": st.column_config.TextColumn("レース名", width="medium"),
-                    "class": "クラス",
-                    "is_obstacle": "種別", 
-                    "age_condition": "年齢", 
-                    "surface": "馬場", 
-                    "distance": st.column_config.NumberColumn("距離", format="%d m"),
-                    "track_detail": "詳細",
-                    "gender": "制限", 
-                    "weight_type": "重量"
-                }
-            )
+
+            # --- ここから追加：スマホ用スッキリ表示トグル ---
+            # デフォルトをTrueにしておき、スマホユーザーがすぐ見やすいようにする
+            is_mobile = st.toggle("📱 スマホ向け短縮表示", value=True, help="列を結合して横スクロールを減らします")
+
+            if is_mobile:
+                for index, row in f_df.iterrows():
+                    header_text = f"{row['date']} ｜ {row['race_name']} ({row['location']}{row['race_num']}R)"
+                    
+                    with st.expander(header_text):
+                        # 展開した中身（2列にして無駄な縦スクロールも防ぐ）
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.markdown(f"**クラス:** {row['class']}")
+                            st.markdown(f"**年齢条件:** {row['age_condition']}")
+                            st.markdown(f"**制限:** {row['gender']}")
+                        with c2:
+                            st.markdown(f"**コース:** {row['surface']}{row['distance']}m")
+                            st.markdown(f"**馬場詳細:** {row['track_detail']}")
+                            st.markdown(f"**重量:** {row['weight_type']}")
+                            
+            else:
+                # --- PC用：従来の全列表示 ---
+                display_columns = [
+                    "date", "location", "race_num", "race_name", "class", 
+                    "is_obstacle", "age_condition", "surface", "distance", 
+                    "track_detail", "gender", "weight_type"
+                ]
+                show_df = f_df[[c for c in display_columns if c in f_df.columns]]
+
+                st.dataframe(
+                    show_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=600,
+                    column_config={
+                        "date": "日付", 
+                        "location": "場所", 
+                        "race_num": st.column_config.NumberColumn("R", format="%dR"),
+                        "race_name": st.column_config.TextColumn("レース名", width="medium"),
+                        "class": "クラス",
+                        "is_obstacle": "種別", 
+                        "age_condition": "年齢", 
+                        "surface": "馬場", 
+                        "distance": st.column_config.NumberColumn("距離", format="%d m"),
+                        "track_detail": "詳細",
+                        "gender": "制限", 
+                        "weight_type": "重量"
+                    }
+                )
 
 except Exception as e:
     st.error(f"Error: {e}")
