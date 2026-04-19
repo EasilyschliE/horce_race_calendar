@@ -146,7 +146,7 @@ try:
         # --- 表示ロジック（データがない時の処理含む） ---
         if not is_filter_applied:
             # 【重要】何も選ばれていない時は案内だけ出す
-            st.info("👈 左側のサイドバーから検索条件（月、競馬場、クラスなど）を指定してください。")
+            st.info("👈 左側のサイドバーから検索条件を指定してください。")
             
         elif f_df.empty:
             st.warning("条件に一致するレースが見つかりませんでした。検索条件を緩めてみてください。")
@@ -162,6 +162,8 @@ try:
             if dist_range != (min_d, max_d): 
                 current_tags.append(f"📏 {dist_range[0]}m～{dist_range[1]}m")
             if selected_obs: current_tags.append(f"🚧 {', '.join(selected_obs)}")
+            if selected_weights: current_tags.append(f"⚖️ {', '.join(selected_weights)}")
+            if selected_tracks: current_tags.append(f"🛣️ {', '.join(selected_tracks)}")
             
             # タグが存在する場合のみ、グレーの背景でスッキリ表示
             if current_tags:
