@@ -205,7 +205,7 @@ try:
                         with c2:
                             st.markdown(f"**重量:** {row['weight_type']}")
                             if row['track_detail']:
-                                st.markdown(f"**詳細:** {row['track_detail']}")
+                                st.markdown(f"**コース詳細:** {row['track_detail']}")
                             
             else:
                 # --- PC用：従来の全列表示 ---
