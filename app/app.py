@@ -152,6 +152,22 @@ try:
             st.warning("条件に一致するレースが見つかりませんでした。検索条件を緩めてみてください。")
             
         else:
+            current_tags = []
+            if selected_months: current_tags.append(f"📅 {', '.join(selected_months)}")
+            if selected_locations: current_tags.append(f"📍 {', '.join(selected_locations)}")
+            if selected_classes: current_tags.append(f"🏆 {', '.join(selected_classes)}")
+            if selected_gen: current_tags.append("🚺 牝馬限定")
+            if selected_surf: current_tags.append(f"🏟️ {'/'.join(selected_surf)}")
+            if selected_ages: current_tags.append(f"🎂 {', '.join(selected_ages)}")
+            if dist_range != (min_d, max_d): 
+                current_tags.append(f"📏 {dist_range[0]}m～{dist_range[1]}m")
+            if selected_obs: current_tags.append(f"🚧 {', '.join(selected_obs)}")
+            
+            # タグが存在する場合のみ、グレーの背景でスッキリ表示
+            if current_tags:
+                tag_html = " ".join([f'<span style="background-color: #f0f2f6; padding: 2px 8px; border-radius: 4px; margin-right: 4px; font-size: 0.8rem; color: #31333F;">{t}</span>' for t in current_tags])
+                st.markdown(tag_html, unsafe_allow_html=True)
+                st.write("") # 少し余白
             st.subheader(f"該当レース: {len(f_df)} 件")
 
             # --- ここから追加：スマホ用スッキリ表示トグル ---
@@ -159,20 +175,35 @@ try:
             is_mobile = st.toggle("📱 スマホ向け短縮表示", value=True, help="列を結合して横スクロールを減らします")
 
             if is_mobile:
+
                 for index, row in f_df.iterrows():
-                    header_text = f"{row['date']} ｜ {row['race_name']} ({row['location']}{row['race_num']}R)"
+                    # 1. 牝馬限定の判定
+                    gen_tag = " (牝限)" if row['gender'] == "牝馬限定" else ""
+                    
+                    # 2. 馬場の短縮
+                    surf_short = "ダ" if row['surface'] == "ダート" else row['surface']
+                    
+                    # 3. 日付の短縮 (2026-07-25 -> 07/25)
+                    short_date = row['date'][5:].replace("-", "/")
+                    
+                    # 4. ヘッダー構築（改行を考慮したチャンク設計）
+                    # [日時・場所] [レース名・牝限] [コース] の3つの塊にする
+                    header_text = (
+                        f"📅 {short_date} [{row['location']}{row['race_num']}R] "
+                        f"🏇 {row['race_name']}{gen_tag} "
+                        f"📏 {surf_short}{row['distance']}m"
+                    )
                     
                     with st.expander(header_text):
-                        # 展開した中身（2列にして無駄な縦スクロールも防ぐ）
+                        # 展開時は表形式に近い形で見せる
                         c1, c2 = st.columns(2)
                         with c1:
                             st.markdown(f"**クラス:** {row['class']}")
-                            st.markdown(f"**年齢条件:** {row['age_condition']}")
-                            st.markdown(f"**制限:** {row['gender']}")
+                            st.markdown(f"**年齢:** {row['age_condition']}")
                         with c2:
-                            st.markdown(f"**コース:** {row['surface']}{row['distance']}m")
-                            st.markdown(f"**馬場詳細:** {row['track_detail']}")
                             st.markdown(f"**重量:** {row['weight_type']}")
+                            if row['track_detail']:
+                                st.markdown(f"**詳細:** {row['track_detail']}")
                             
             else:
                 # --- PC用：従来の全列表示 ---
