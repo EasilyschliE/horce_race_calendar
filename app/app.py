@@ -3,7 +3,7 @@ import pandas as pd
 import glob
 import os
 
-st.set_page_config(page_title="JRA レース検索", layout="wide")
+st.set_page_config(page_title="馬のレース検索ツール", layout="wide")
 st.title("JRA レース検索ツール")
 
 @st.cache_data
