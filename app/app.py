@@ -65,7 +65,35 @@ try:
         # グループ2: レース条件
         with st.sidebar.expander("レース条件", expanded=True):
             min_d, max_d = int(df["distance"].min()), int(df["distance"].max())
-            dist_range = st.slider("距離 (m)", min_d, max_d, (min_d, max_d), step=100)
+            # 1. プリセットボタンが押された時に値を更新する関数
+            def set_distance(d_min, d_max):
+                st.session_state.distance_slider = (d_min, d_max)
+
+            # 2. スライダー用のセッションステートを初期化
+            if "distance_slider" not in st.session_state:
+                st.session_state.distance_slider = (min_d, max_d)
+
+            # 3. プリセットボタンの配置 (サイドバーに収まるよう2列×2行にする)
+            st.caption("距離プリセット")
+            col1, col2 = st.columns(2)
+            col1.button("短距離", on_click=set_distance, args=(min_d, 1400), use_container_width=True)
+            col2.button("マイル", on_click=set_distance, args=(1401, 1799), use_container_width=True)
+            
+            col3, col4 = st.columns(2)
+            col3.button("中距離", on_click=set_distance, args=(1800, 2400), use_container_width=True)
+            col4.button("長距離", on_click=set_distance, args=(2401, max_d), use_container_width=True)
+
+            if st.button("距離リセット", on_click=set_distance, args=(min_d, max_d), use_container_width=True):
+                pass # on_clickで処理されるため中身は不要
+
+            # 4. スライダーに key を設定してセッションステートと連動させる
+            dist_range = st.slider(
+                "距離 (m)", 
+                min_value=min_d, 
+                max_value=max_d, 
+                step=100,
+                key="distance_slider" # ←ここが超重要！
+            )
 
             # 性別と種別を1行にまとめるか、マルチセレクト化
             selected_gen = st.checkbox("牝馬限定のみ表示") # radioよりチェックボックスの方が直感的
